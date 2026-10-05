@@ -1,0 +1,155 @@
+openapi: 3.1.0
+info:
+  title: API Catalogue et Produits
+  version: 1.0.0
+  description: API REST avec pagination par curseur et erreurs Problem Details conformes à RFC 7807.
+servers:
+  - url: /
+paths:
+  /api/v1/products:
+    get:
+      summary: Lister les produits avec pagination par curseur
+      parameters:
+        - name: cursor
+          in: query
+          description: Identifiant du dernier produit reçu
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        - name: category
+          in: query
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: Page de produits et métadonnées du curseur
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductPage' }
+        '400':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    post:
+      summary: Créer un produit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '201':
+          description: Produit créé
+          headers:
+            Location:
+              description: URI du nouveau produit
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/products/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      summary: Consulter un produit
+      responses:
+        '200':
+          description: Produit demandé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    put:
+      summary: Remplacer un produit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '200':
+          description: Produit remplacé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    delete:
+      summary: Supprimer un produit
+      responses:
+        '204':
+          description: Produit supprimé
+        '400':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+components:
+  schemas:
+    ProductInput:
+      type: object
+      additionalProperties: false
+      required: [name, price, category]
+      properties:
+        name: { type: string, minLength: 3 }
+        price: { type: number, exclusiveMinimum: 0 }
+        category: { type: string, minLength: 1 }
+    Product:
+      allOf:
+        - $ref: '#/components/schemas/ProductInput'
+        - type: object
+          required: [id, createdAt]
+          properties:
+            id: { type: integer, readOnly: true }
+            createdAt: { type: string, format: date-time, readOnly: true }
+    ProductPage:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Product' }
+        pagination:
+          type: object
+          required: [limit, currentCursor, nextCursor, hasMore]
+          properties:
+            limit: { type: integer }
+            currentCursor: { type: integer }
+            nextCursor: { type: [integer, 'null'] }
+            hasMore: { type: boolean }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+        invalidParams:
+          type: array
+          items:
+            type: object
+            required: [name, reason]
+            properties:
+              name: { type: string }
+              reason: { type: string }
+  responses:
+    Problem:
+      description: Erreur au format RFC 7807 Problem Details
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
